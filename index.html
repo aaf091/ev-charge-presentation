@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV Charging Intelligence — Predictive Demand Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060c18;
+  --surf:#0b1525;
+  --surf2:#0f1e35;
+  --card:#0d1a2e;
+  --border:rgba(0,200,255,0.1);
+  --border2:rgba(0,200,255,0.2);
+  --accent:#00c8ff;
+  --accent2:#00ff9d;
+  --accent3:#ff6b35;
+  --text:#ddeeff;
+  --muted:#6b90b0;
+  --muted2:#4a6a88;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+/* STARFIELD CANVAS */
+#starfield{
+  position:fixed;inset:0;
+  z-index:0;pointer-events:none;
+}
+
+/* SCROLL PROGRESS */
+#prog{
+  position:fixed;top:0;left:0;height:2px;width:0;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  z-index:200;
+  box-shadow:0 0 12px var(--accent);
+  transition:width 0.08s;
+}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 48px;
+  background:rgba(6,12,24,0.8);
+  backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.nav-brand{
+  font-family:'Syne',sans-serif;
+  font-weight:800;font-size:0.85rem;
+  letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--accent);
+  display:flex;align-items:center;gap:10px;
+}
+.nav-bolt{
+  width:22px;height:22px;
+  background:var(--accent);
+  clip-path:polygon(60% 0%,25% 50%,55% 50%,40% 100%,75% 50%,45% 50%);
+  animation:boltPulse 2s ease-in-out infinite;
+}
+@keyframes boltPulse{
+  0%,100%{opacity:0.8;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.15)}
+}
+.nav-links{
+  display:flex;gap:4px;
+}
+.nav-link{
+  padding:6px 14px;border-radius:100px;
+  font-size:0.78rem;font-weight:500;
+  color:var(--muted);
+  cursor:pointer;transition:all 0.25s;
+  border:1px solid transparent;
+  background:none;
+  font-family:'DM Sans',sans-serif;
+}
+.nav-link:hover,.nav-link.active{
+  color:var(--accent);
+  border-color:var(--border2);
+  background:rgba(0,200,255,0.06);
+}
+.nav-counter{
+  font-family:'Syne',sans-serif;
+  font-size:0.72rem;letter-spacing:0.15em;
+  color:var(--muted2);
+}
+
+/* SECTIONS */
+section{
+  position:relative;z-index:1;
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  padding:120px 48px 80px;
+}
+.wrap{max-width:1120px;width:100%;margin:0 auto;}
+
+/* REVEAL ANIMATION */
+.reveal{
+  opacity:0;transform:translateY(50px);
+  transition:opacity 0.9s cubic-bezier(0.16,1,0.3,1),transform 0.9s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.in{opacity:1;transform:translateY(0);}
+.reveal-d1{transition-delay:0.1s}
+.reveal-d2{transition-delay:0.2s}
+.reveal-d3{transition-delay:0.35s}
+.reveal-d4{transition-delay:0.5s}
+
+/* SECTION LABELS */
+.eyebrow{
+  font-family:'Syne',sans-serif;
+  font-size:0.68rem;letter-spacing:0.3em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{
+  content:'';display:block;
+  width:32px;height:1px;background:var(--accent);
+}
+
+/* SECTION TITLE */
+.sec-title{
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:clamp(2rem,3.5vw,3rem);
+  line-height:1.08;letter-spacing:-0.02em;
+  margin-bottom:40px;
+}
+.sec-title .hi{color:var(--accent);}
+.sec-title .hi2{color:var(--accent2);}
+.sec-title .hi3{color:var(--accent3);}
+
+/* CARDS */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;padding:28px;
+  position:relative;overflow:hidden;
+  transition:border-color 0.3s,transform 0.3s;
+}
+.card:hover{
+  border-color:var(--border2);
+  transform:translateY(-3px);
+}
+.card::after{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,var(--accent),transparent);
+  opacity:0;transition:opacity 0.3s;
+}
+.card:hover::after{opacity:1;}
+.card-tag{
+  font-family:'Syne',sans-serif;
+  font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px;opacity:0.8;
+}
+.card-h{
+  font-family:'Syne',sans-serif;font-weight:600;
+  font-size:1.05rem;margin-bottom:10px;
+}
+.card-body{font-size:0.88rem;color:var(--muted);line-height:1.75;}
+
+/* GRID HELPERS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+@media(max-width:760px){.g2,.g3,.g4{grid-template-columns:1fr;}}
+@media(max-width:960px){.g4{grid-template-columns:1fr 1fr;}}
+
+/* BIG STATS */
+.big-stat{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:26px 22px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.big-stat::before{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  opacity:0.5;
+}
+.stat-num{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:2.2rem;color:var(--accent);
+  line-height:1;margin-bottom:6px;
+}
+.stat-lbl{font-size:0.78rem;color:var(--muted);line-height:1.4;}
+
+/* CHART CONTAINERS */
+.chart-box{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;padding:28px;
+}
+.chart-title{
+  font-family:'Syne',sans-serif;font-weight:600;
+  font-size:0.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:0.1em;
+  margin-bottom:20px;
+}
+
+/* HYPOTHESIS BADGES */
+.hyp-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 14px;border-radius:100px;
+  font-family:'Syne',sans-serif;
+  font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+  margin-bottom:14px;
+}
+.hyp-c{background:rgba(0,255,157,0.1);color:var(--accent2);border:1px solid rgba(0,255,157,0.25);}
+.hyp-n{background:rgba(255,107,53,0.1);color:var(--accent3);border:1px solid rgba(255,107,53,0.25);}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:0.85rem;}
+.tbl th{
+  font-family:'Syne',sans-serif;font-weight:600;
+  font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--muted2);padding:12px 16px;
+  border-bottom:1px solid var(--border);text-align:left;
+}
+.tbl td{
+  padding:13px 16px;
+  border-bottom:1px solid rgba(0,200,255,0.04);
+  color:var(--text);vertical-align:middle;
+}
+.tbl tr:hover td{background:rgba(0,200,255,0.03);}
+.tbl tr.sel td{background:rgba(0,255,157,0.04);}
+
+/* BADGE */
+.badge{
+  display:inline-block;padding:3px 10px;
+  border-radius:100px;font-size:0.7rem;font-weight:500;
+}
+.b-num{background:rgba(0,200,255,0.1);color:var(--accent);}
+.b-cat{background:rgba(255,107,53,0.1);color:var(--accent3);}
+.b-bool{background:rgba(0,255,157,0.1);color:var(--accent2);}
+.b-sel{background:var(--accent2);color:#001a0d;font-weight:700;font-size:0.65rem;padding:3px 10px;}
+
+/* CALLOUT */
+.callout{
+  border-left:2px solid var(--accent);
+  padding:14px 18px;
+  background:rgba(0,200,255,0.04);
+  border-radius:0 12px 12px 0;
+  font-size:0.86rem;color:var(--muted);line-height:1.7;
+  margin-top:18px;
+}
+.callout strong{color:var(--text);}
+
+/* STEP CARDS */
+.step-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:20px;padding:30px 26px;
+  position:relative;overflow:hidden;
+  transition:border-color 0.3s,transform 0.3s;
+}
+.step-card:hover{border-color:var(--border2);transform:translateY(-3px);}
+.step-num{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:5rem;color:rgba(0,200,255,0.06);
+  position:absolute;top:10px;right:18px;line-height:1;
+}
+.step-h{
+  font-family:'Syne',sans-serif;font-weight:600;
+  font-size:1rem;margin-bottom:10px;position:relative;
+}
+.step-body{font-size:0.86rem;color:var(--muted);line-height:1.7;position:relative;}
+
+/* DIVIDER */
+.div{
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--border),transparent);
+  margin:48px 0;
+}
+
+/* PREDICTION BOX */
+.pred-box{
+  background:linear-gradient(135deg,rgba(0,200,255,0.07),rgba(0,255,157,0.05));
+  border:1px solid rgba(0,200,255,0.2);
+  border-radius:20px;padding:28px 32px;text-align:center;
+  margin:24px 0;
+}
+.pred-h{
+  font-family:'Syne',sans-serif;font-size:0.65rem;
+  letter-spacing:0.25em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:12px;
+}
+.pred-txt{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:1.3rem;line-height:1.5;
+}
+
+/* SAVINGS */
+.sav-num{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:3rem;color:var(--accent2);line-height:1;
+  margin-bottom:6px;
+}
+
+/* ============================
+   HERO SECTION SPECIAL STYLES
+   ============================ */
+#s1{
+  overflow:hidden;
+  background:radial-gradient(ellipse 80% 70% at 60% 50%,rgba(0,200,255,0.05) 0%,transparent 60%);
+}
+.hero-h{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(3rem,7vw,6rem);
+  line-height:0.95;letter-spacing:-0.03em;
+  margin-bottom:24px;
+}
+.hero-sub{
+  font-size:1.1rem;color:var(--muted);
+  font-weight:300;line-height:1.75;
+  max-width:520px;margin-bottom:36px;
+}
+.author-chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:36px;}
+.chip{
+  padding:5px 15px;border-radius:100px;
+  border:1px solid var(--border);
+  font-size:0.82rem;color:var(--muted);
+  background:rgba(0,200,255,0.03);
+}
+.source-lbl{font-size:0.78rem;color:var(--muted2);}
+
+/* HERO CANVAS (EV animation) */
+#evCanvas{
+  position:absolute;right:0;top:50%;
+  transform:translateY(-50%);
+  width:520px;height:520px;
+  opacity:0.85;
+  pointer-events:none;
+}
+@media(max-width:1000px){#evCanvas{display:none;}}
+
+/* CHARGING VIZ */
+#chargingCanvas{
+  width:100%;height:320px;
+  border-radius:16px;
+  display:block;
+}
+
+/* SCROLL HINT */
+.scroll-hint{
+  position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  animation:scrollBounce 2s ease-in-out infinite;
+  opacity:0.5;cursor:pointer;
+}
+@keyframes scrollBounce{
+  0%,100%{transform:translateX(-50%) translateY(0);}
+  50%{transform:translateX(-50%) translateY(8px);}
+}
+.scroll-arrow{
+  width:20px;height:20px;
+  border-right:2px solid var(--accent);
+  border-bottom:2px solid var(--accent);
+  transform:rotate(45deg);
+}
+.scroll-txt{
+  font-family:'Syne',sans-serif;
+  font-size:0.62rem;letter-spacing:0.2em;
+  text-transform:uppercase;color:var(--accent);
+  writing-mode:horizontal-tb;
+}
+
+/* SIDE BREADCRUMB */
+.crumb{
+  position:fixed;right:24px;top:50%;transform:translateY(-50%);
+  z-index:50;display:flex;flex-direction:column;gap:8px;
+}
+.crumb-item{
+  width:3px;height:20px;background:var(--border);
+  border-radius:100px;cursor:pointer;transition:all 0.3s;
+}
+.crumb-item.on{
+  background:var(--accent);height:36px;
+  box-shadow:0 0 8px var(--accent);
+}
+@media(max-width:900px){.crumb{display:none;}}
+
+/* ANIMATED COUNTER */
+.count-num{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:2.4rem;color:var(--accent);line-height:1;
+}
+
+/* DEMAND TIMELINE */
+#timelineCanvas{width:100%;height:200px;display:block;}
+
+/* DUAL STAT */
+.dual-stat{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+  margin-bottom:16px;
+}
+.ds-box{
+  text-align:center;padding:24px 16px;border-radius:16px;
+}
+.ds-box.free{
+  background:rgba(255,107,53,0.08);
+  border:1px solid rgba(255,107,53,0.2);
+}
+.ds-box.paid{
+  background:rgba(0,200,255,0.06);
+  border:1px solid var(--border);
+}
+.ds-num{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:2.8rem;line-height:1;margin-bottom:5px;
+}
+.ds-lbl{font-size:0.8rem;color:var(--muted);line-height:1.4;}
+
+/* ANIM BAR CHART (custom horizontal) */
+.hbar-wrap{margin-bottom:10px;}
+.hbar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.hbar-lbl{font-size:0.8rem;color:var(--muted);width:80px;text-align:right;flex-shrink:0;}
+.hbar-track{flex:1;height:9px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:hidden;}
+.hbar-fill{height:100%;border-radius:100px;width:0;transition:width 1.4s cubic-bezier(0.34,1.56,0.64,1);}
+.hbar-val{font-family:'Syne',sans-serif;font-size:0.78rem;font-weight:600;width:36px;}
+
+/* PROFILE CARDS */
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:600px){.profile-grid{grid-template-columns:1fr;}}
+.profile-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:22px;
+  display:flex;gap:14px;align-items:flex-start;
+  transition:border-color 0.3s;
+}
+.profile-card:hover{border-color:var(--border2);}
+.p-icon{
+  width:46px;height:46px;border-radius:12px;
+  background:rgba(0,200,255,0.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;flex-shrink:0;
+}
+.p-lbl{font-family:'Syne',sans-serif;font-weight:600;font-size:0.85rem;color:var(--accent);margin-bottom:5px;}
+.p-desc{font-size:0.82rem;color:var(--muted);line-height:1.6;}
+
+/* GLOW ORBS */
+.orb{
+  position:absolute;border-radius:50%;
+  filter:blur(100px);pointer-events:none;z-index:0;
+}
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div id="prog"></div>
+
+<!-- SIDE BREADCRUMB -->
+<div class="crumb" id="crumb"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-bolt"></div>
+    EV Charging Intelligence
+  </div>
+  <div class="nav-links" id="navLinks"></div>
+  <div class="nav-counter" id="navCounter">01 / 08</div>
+</nav>
+
+<!-- ===================== SECTION 1: HERO ===================== -->
+<section id="s1">
+  <div class="orb" style="width:600px;height:600px;background:rgba(0,200,255,0.05);top:-100px;right:-150px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(0,255,157,0.04);bottom:-50px;left:-100px;"></div>
+  <div class="wrap" style="position:relative;">
+    <div class="reveal">
+      <div class="eyebrow">Data Science Capstone · Group 3</div>
+      <h1 class="hero-h">
+        Predicting<br>
+        <span style="color:var(--accent);">High-Demand</span><br>
+        EV Charging<br>
+        <span style="color:var(--accent2);">Sessions</span>
+      </h1>
+    </div>
+    <div class="reveal reveal-d1">
+      <p class="hero-sub">Reducing employer peak electricity costs through predictive charging management at the workplace.</p>
+      <div class="author-chips">
+        <span class="chip">Harshita Singh</span>
+        <span class="chip">Aadit Fadia</span>
+        <span class="chip">Ciara Butler</span>
+        <span class="chip">Sarah Lemonick</span>
+        <span class="chip">Wanzhen Yang</span>
+      </div>
+      <div class="source-lbl">&#128202; Data: NREL Workplace EV Charging Dataset · Nov 2016 – Oct 2021</div>
+    </div>
+  </div>
+  <canvas id="evCanvas"></canvas>
+  <div class="scroll-hint" onclick="document.getElementById('s2').scrollIntoView({behavior:'smooth'})">
+    <div class="scroll-arrow"></div>
+    <span class="scroll-txt">Scroll</span>
+  </div>
+</section>
+
+<!-- ===================== SECTION 2: BUSINESS PROBLEM ===================== -->
+<section id="s2">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">The Problem</div>
+      <h2 class="sec-title">Employer Costs Are<br><span class="hi">Rising Fast</span></h2>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="card reveal reveal-d1" style="margin-bottom:20px;">
+          <div class="card-tag">Hypothesis 1</div>
+          <div class="card-h">&#127751; The 8:30 AM Plug-In Problem</div>
+          <div class="card-body">Employees arrive at work, plug in, and charge for the full workday. Simultaneous morning plug-ins spike the peak 15-minute kW demand — raising monthly bills dramatically. Sessions after 2 PM running 6+ hours extend into the costly 4–9 PM peak rate window.</div>
+        </div>
+        <div class="card reveal reveal-d2">
+          <div class="card-tag">Hypothesis 2</div>
+          <div class="card-h">&#128183; Free Charging Amplifies the Problem</div>
+          <div class="card-body">When employers absorb 100% of electricity costs, employees have no price signal to moderate behavior — leading to disproportionately long, high-energy sessions that spike demand charges.</div>
+        </div>
+      </div>
+      <div class="reveal reveal-d2">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-tag">PG&amp;E Rate Structure</div>
+          <div class="card-h">&#9889; Two Cost Drivers</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+            <div style="text-align:center;padding:20px 12px;background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.15);border-radius:14px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;color:var(--accent3);">2.6×</div>
+              <div style="font-size:0.78rem;color:var(--muted);line-height:1.4;margin-top:5px;">Peak (4–9 PM) vs.<br>Off-Peak rates</div>
+            </div>
+            <div style="text-align:center;padding:20px 12px;background:rgba(0,200,255,0.06);border:1px solid var(--border);border-radius:14px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;color:var(--accent);">$41.27<span style="font-size:1rem;">/kW</span></div>
+              <div style="font-size:0.78rem;color:var(--muted);line-height:1.4;margin-top:5px;">Max demand charge<br>per month (E-20)</div>
+            </div>
+          </div>
+        </div>
+        <!-- LIVE CHARGING TIMELINE CANVAS -->
+        <div class="chart-box reveal reveal-d3">
+          <div class="chart-title">&#9889; Simulated Peak Demand Events</div>
+          <canvas id="timelineCanvas" role="img" aria-label="Animated timeline showing peak demand spikes during morning plug-in and 4-9PM window"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 3: SAVINGS ===================== -->
+<section id="s3">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Business Case</div>
+      <h2 class="sec-title">Apple Campus:<br><span class="hi2">$100K Savings / Year</span></h2>
+    </div>
+    <div class="g4 reveal reveal-d1" style="margin-bottom:28px;">
+      <div class="big-stat">
+        <div class="stat-num">$0.357</div>
+        <div class="stat-lbl">BEV Peak Rate<br>(4–9 PM/kWh)</div>
+      </div>
+      <div class="big-stat">
+        <div class="stat-num">$0.134</div>
+        <div class="stat-lbl">Super Off-Peak<br>(9 AM–2 PM/kWh)</div>
+      </div>
+      <div class="big-stat">
+        <div class="stat-num">21.8 kWh</div>
+        <div class="stat-lbl">Avg high-demand<br>session</div>
+      </div>
+      <div class="big-stat">
+        <div class="stat-num">1,200</div>
+        <div class="stat-lbl">Charging sessions<br>per day (campus)</div>
+      </div>
+    </div>
+    <div class="g2 reveal reveal-d2">
+      <div class="card">
+        <div class="card-tag">Energy Rate Savings</div>
+        <div class="sav-num" id="savCount1">$0</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">per year — dedicated BEV meter</div>
+        <div style="font-size:0.78rem;color:var(--muted2);line-height:1.7;border-left:2px solid var(--border);padding-left:12px;">90 sessions/day × 10 kWh × $0.223 rate gap = $200/day<br>× 250 workdays = <strong style="color:var(--text);">$50,000/yr</strong></div>
+      </div>
+      <div class="card">
+        <div class="card-tag">Demand Charge Reduction</div>
+        <div class="sav-num" id="savCount2">$0</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">per year — E-20 building meter</div>
+        <div style="font-size:0.78rem;color:var(--muted2);line-height:1.7;border-left:2px solid var(--border);padding-left:12px;">100 kW peak reduction × $41.27/kW × 12 months<br>= <strong style="color:var(--text);">$49,524/yr</strong></div>
+      </div>
+    </div>
+    <div class="reveal reveal-d3" style="margin-top:22px;">
+      <div style="background:linear-gradient(135deg,rgba(0,200,255,0.08),rgba(0,255,157,0.06));border:1px solid rgba(0,255,157,0.2);border-radius:20px;padding:32px;text-align:center;">
+        <div style="font-family:'Syne',sans-serif;font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Combined Annual Savings — Single Campus</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">~$100,000</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-top:8px;">30% of high-demand sessions shifted off-peak · 2,000 EV employees</div>
+      </div>
+    </div>
+    <div class="reveal reveal-d4" style="margin-top:28px;">
+      <div class="chart-box">
+        <div class="chart-title">Cost Breakdown Comparison</div>
+        <div style="position:relative;height:280px;">
+          <canvas id="savingsChart" role="img" aria-label="Bar chart showing energy cost savings breakdown: energy rate savings 50K, demand charge reduction 49.5K, total 99.5K"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 4: DATA ===================== -->
+<section id="s4">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">The Data</div>
+      <h2 class="sec-title">NREL Workplace<br><span class="hi">EV Charging Dataset</span></h2>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="g3 reveal reveal-d1" style="margin-bottom:22px;">
+          <div class="big-stat"><div class="stat-num" style="font-size:1.9rem;">40,979</div><div class="stat-lbl">Original rows</div></div>
+          <div class="big-stat"><div class="stat-num" style="font-size:1.9rem;">16</div><div class="stat-lbl">Features</div></div>
+          <div class="big-stat"><div class="stat-num" style="font-size:1.6rem;">5 yrs</div><div class="stat-lbl">2016–2021</div></div>
+        </div>
+        <div class="card reveal reveal-d2" style="margin-bottom:20px;">
+          <div class="card-tag">After Cleaning</div>
+          <div class="card-h">14,555 Usable Sessions</div>
+          <div class="card-body">Removed missing start/end times, duplicates, negative energy values, and sessions over 24 hrs.<br><br><strong style="color:var(--text);">Target:</strong> high_demand = 1 if energy ≥ 14.31 kWh (75th percentile).<br><br><strong style="color:var(--accent);">25% high-demand</strong> · 75% not — imbalanced binary classification.</div>
+        </div>
+        <div class="reveal reveal-d3">
+          <div class="chart-box">
+            <div class="chart-title">Class Distribution</div>
+            <div style="position:relative;height:200px;">
+              <canvas id="classChart" role="img" aria-label="Donut chart showing 75% not high demand, 25% high demand sessions"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal reveal-d2">
+        <div class="card">
+          <div class="card-tag">Original 16 Features</div>
+          <div id="featureGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 5: FEATURES ===================== -->
+<section id="s5">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Feature Engineering</div>
+      <h2 class="sec-title">7 Predictors,<br><span class="hi">1 Binary Target</span></h2>
+    </div>
+    <div class="reveal reveal-d1" style="background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:22px;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>#</th><th>Variable</th><th>Type</th><th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="color:var(--muted2);">1</td><td style="font-weight:500;">session_duration_hours</td><td><span class="badge b-num">Numeric</span></td><td style="color:var(--muted);font-size:0.82rem;">Duration — employee can estimate at plug-in</td></tr>
+          <tr><td style="color:var(--muted2);">2</td><td style="font-weight:500;">time_window_2hr</td><td><span class="badge b-cat">Categorical</span></td><td style="color:var(--muted);font-size:0.82rem;">Proxy for extending into peak pricing window</td></tr>
+          <tr><td style="color:var(--muted2);">3</td><td style="font-weight:500;">day_of_week</td><td><span class="badge b-num">Numeric</span></td><td style="color:var(--muted);font-size:0.82rem;">Weekday patterns differ for hybrid employees</td></tr>
+          <tr><td style="color:var(--muted2);">4</td><td style="font-weight:500;">month</td><td><span class="badge b-num">Numeric</span></td><td style="color:var(--muted);font-size:0.82rem;">Seasonal variation in EV behavior</td></tr>
+          <tr><td style="color:var(--muted2);">5</td><td style="font-weight:500;">paid_session</td><td><span class="badge b-bool">Boolean</span></td><td style="color:var(--muted);font-size:0.82rem;">Tests price-signal hypothesis directly</td></tr>
+          <tr><td style="color:var(--muted2);">6</td><td style="font-weight:500;">make_clean</td><td><span class="badge b-cat">Categorical</span></td><td style="color:var(--muted);font-size:0.82rem;">Battery size varies by manufacturer</td></tr>
+          <tr class="sel"><td style="color:var(--muted2);">7</td><td style="font-weight:500;">is_weekend</td><td><span class="badge b-bool">Boolean</span></td><td style="color:var(--muted);font-size:0.82rem;">Weekend usage differs from weekday patterns</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="g2 reveal reveal-d2">
+      <div class="chart-box">
+        <div class="chart-title">Feature Importance (Model Contribution)</div>
+        <div id="featImportanceBars"></div>
+      </div>
+      <div class="card">
+        <div class="card-tag">Why These 7?</div>
+        <div class="card-body" style="line-height:1.8;">Station IDs and driver IDs were excluded — we wanted <strong style="color:var(--text);">behavioral signals available before a session starts</strong>, not identifiers.<br><br>The target threshold (≥14.31 kWh) represents the <strong style="color:var(--accent);">top 25th percentile</strong> of session energy — the sessions that actually drive employer costs.<br><br>All 7 features are knowable or estimable <strong style="color:var(--text);">at plug-in time</strong>, enabling real-time scoring.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 6: MODEL ===================== -->
+<section id="s6">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Modeling &amp; Results</div>
+      <h2 class="sec-title">AUC 0.76 —<br><span class="hi">Strong Generalization</span></h2>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="reveal reveal-d1" style="background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:22px;">
+          <div style="padding:16px 22px;background:rgba(0,200,255,0.05);font-family:'Syne',sans-serif;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted2);display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;">
+            <div>Model</div><div style="text-align:center;">Val AUC</div><div style="text-align:center;">CV AUC</div><div style="text-align:center;">Holdout</div>
+          </div>
+          <div id="aucRows"></div>
+        </div>
+        <div class="callout reveal reveal-d2">
+          <strong>Why AUC over Accuracy?</strong><br>Our target is imbalanced (25% positive). A naïve model predicting "never high-demand" is 75% accurate but useless. AUC penalizes this and rewards true discrimination.
+        </div>
+      </div>
+      <div class="reveal reveal-d2">
+        <div class="chart-box" style="margin-bottom:20px;">
+          <div class="chart-title">AUC Comparison — All Models</div>
+          <div style="position:relative;height:240px;">
+            <canvas id="aucChart" role="img" aria-label="Horizontal bar chart comparing AUC scores of 5 models, ranging from 0.74 to 0.76"></canvas>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,rgba(0,255,157,0.06),rgba(0,200,255,0.04));border:1px solid rgba(0,255,157,0.15);border-radius:16px;padding:24px;text-align:center;">
+          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:4.5rem;color:var(--accent2);line-height:1;">0.76</div>
+          <div style="font-size:0.85rem;color:var(--muted);margin-top:8px;">Correctly ranks a high-demand session above a non-high-demand session<br><strong style="color:var(--text);">~76% of the time</strong> — well above random (0.50)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 7: PREDICTORS ===================== -->
+<section id="s7">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Key Predictors</div>
+      <h2 class="sec-title">What Drives<br><span class="hi">High Demand?</span></h2>
+    </div>
+    <div class="g2" style="margin-bottom:24px;">
+      <!-- Duration Chart -->
+      <div class="chart-box reveal reveal-d1">
+        <div class="chart-title">&#9201; Session Duration → P(High Demand)</div>
+        <div style="position:relative;height:220px;">
+          <canvas id="durChart" role="img" aria-label="Bar chart showing probability of high demand increases with session duration, from near 0 for under 1 hour to 37% for 6+ hours"></canvas>
+        </div>
+        <div class="callout" style="margin-top:14px;">Sessions under 2.5 hrs → near-zero. Above 4 hrs → 22–37% probability. <strong>#1 predictor overall.</strong></div>
+      </div>
+      <!-- Time Window Chart -->
+      <div class="chart-box reveal reveal-d2">
+        <div class="chart-title">&#128336; Start Time Window → P(High Demand)</div>
+        <div style="position:relative;height:220px;">
+          <canvas id="timeChart" role="img" aria-label="Bar chart showing P(high demand) by start time window, 2-4 PM is highest at 0.29"></canvas>
+        </div>
+        <div class="hyp-n" style="margin-top:14px;">Hypothesis 1 Not Confirmed</div>
+        <div style="font-size:0.82rem;color:var(--muted);">8–10 AM (0.27) is only slightly above daytime average. <strong style="color:var(--text);">2–4 PM is the real danger zone</strong> — sessions run into peak hours.</div>
+      </div>
+    </div>
+    <div class="g2">
+      <!-- Vehicle Make Chart -->
+      <div class="chart-box reveal reveal-d2">
+        <div class="chart-title">&#128663; Vehicle Make → P(High Demand)</div>
+        <div style="position:relative;height:240px;">
+          <canvas id="makeChart" role="img" aria-label="Horizontal bar chart showing Tesla at 0.64 probability, far above other makes"></canvas>
+        </div>
+        <div class="callout" style="margin-top:14px;">Tesla: 0.64 — <strong>2× the average</strong>. Large battery packs (75–100+ kWh) enable higher-draw sessions.</div>
+      </div>
+      <!-- Free vs Paid -->
+      <div class="chart-box reveal reveal-d3">
+        <div class="hyp-c">Hypothesis 2 Confirmed</div>
+        <div class="chart-title">&#128179; Free vs. Paid Sessions</div>
+        <div class="dual-stat">
+          <div class="ds-box free">
+            <div class="ds-num" style="color:var(--accent3);" id="freeCount">0%</div>
+            <div class="ds-lbl">FREE sessions<br>are high-demand</div>
+          </div>
+          <div class="ds-box paid">
+            <div class="ds-num" style="color:var(--accent);" id="paidCount">0%</div>
+            <div class="ds-lbl">PAID sessions<br>are high-demand</div>
+          </div>
+        </div>
+        <div style="position:relative;height:160px;">
+          <canvas id="paidChart" role="img" aria-label="Bar chart showing free sessions have 50% high demand rate vs 24.5% for paid sessions"></canvas>
+        </div>
+        <div style="margin-top:14px;font-size:0.83rem;color:var(--muted);line-height:1.65;padding:12px 14px;background:rgba(0,255,157,0.04);border:1px solid rgba(0,255,157,0.1);border-radius:10px;">
+          Free charging = zero financial incentive. <strong style="color:var(--accent2);">Price signals work — 2× difference.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 8: RECOMMENDATIONS ===================== -->
+<section id="s8">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Recommendations &amp; Next Steps</div>
+      <h2 class="sec-title">Identifiable<br><span class="hi">Before It Starts</span></h2>
+    </div>
+    <div class="profile-grid reveal reveal-d1">
+      <div class="profile-card"><div class="p-icon">&#128336;</div><div><div class="p-lbl">Arrives 8–16:00</div><div class="p-desc">14–16 window is highest risk — sessions extend into 4–9 PM peak pricing window, the costliest hours.</div></div></div>
+      <div class="profile-card"><div class="p-icon">&#9201;&#65039;</div><div><div class="p-lbl">Requests 6+ Hours</div><div class="p-desc">Session duration is the #1 predictor. Above 4 hrs, risk rises sharply — capturable at plug-in intake.</div></div></div>
+      <div class="profile-card"><div class="p-icon">&#128663;</div><div><div class="p-lbl">Drives a Tesla</div><div class="p-desc">Large-battery vehicles (Tesla, Nissan, Fiat) have significantly elevated high-demand probability.</div></div></div>
+      <div class="profile-card"><div class="p-icon">&#127379;</div><div><div class="p-lbl">Free Session</div><div class="p-desc">Free charging doubles high-demand probability vs. paid. Introducing cost-sharing reduces demand.</div></div></div>
+    </div>
+    <div class="pred-box reveal reveal-d2">
+      <div class="pred-h">= A Predictable High-Demand Session — Identifiable Before It Starts</div>
+      <div class="pred-txt">Pre-session intake → real-time model scoring → offer alternatives<br><span style="color:var(--accent);font-size:1rem;">pay for session · start earlier · reduce requested hours · stagger plug-ins</span></div>
+    </div>
+    <div class="div"></div>
+    <div class="reveal reveal-d2">
+      <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:1rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:20px;">Next Steps</div>
+    </div>
+    <div class="g2 reveal reveal-d3">
+      <div class="step-card"><div class="step-num">01</div><div class="step-h">Pilot at One Site</div><div class="step-body">Deploy intake system at a single campus. Collect 3 months of pre/post data on session distribution, charger utilization, and electricity costs.</div></div>
+      <div class="step-card"><div class="step-num">02</div><div class="step-h">Quantify Demand Savings</div><div class="step-body">Pull 15-minute interval meter data. Measure peak kW reduction (E-20 savings) and hours shifted out of 4–9 PM window before/after managed charging.</div></div>
+      <div class="step-card"><div class="step-num">03</div><div class="step-h">Add Live Pricing Feature</div><div class="step-body">Integrate real-time California TOU pricing into the model. Retrain with pilot data to improve AUC toward 0.80+ and refine the threshold.</div></div>
+      <div class="step-card"><div class="step-num">04</div><div class="step-h">Automate &amp; Scale</div><div class="step-body">Roll out to additional sites. Automate real-time session scoring via API. Integrate with fleet management and HR scheduling systems.</div></div>
+    </div>
+  </div>
+</section>
+
+<script>
+// =============================================
+// STARFIELD BACKGROUND
+// =============================================
+(function(){
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars=[];
+  function resize(){
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+  }
+  function mkStars(){
+    stars=[];
+    for(let i=0;i<180;i++){
+      stars.push({
+        x:Math.random()*W,y:Math.random()*H,
+        r:Math.random()*1.2+0.2,
+        o:Math.random()*0.5+0.1,
+        speed:Math.random()*0.3+0.05,
+        twinkle:Math.random()*Math.PI*2
+      });
+    }
+  }
+  resize(); mkStars();
+  window.addEventListener('resize',()=>{resize();mkStars();});
+  let t=0;
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    t+=0.01;
+    stars.forEach(s=>{
+      s.twinkle+=s.speed*0.05;
+      const op=s.o*(0.5+0.5*Math.sin(s.twinkle));
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(180,220,255,${op})`;
+      ctx.fill();
+      // occasional glow star
+      if(s.r>1.0){
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r*2.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(0,200,255,${op*0.15})`;
+        ctx.fill();
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// =============================================
+// EV CAR ANIMATION (Hero)
+// =============================================
+(function(){
+  const canvas = document.getElementById('evCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=520, H=520;
+  canvas.width=W; canvas.height=H;
+  let t=0;
+  const CARS=[
+    {x:260,y:260,angle:0,speed:0.008,radius:180,color:'rgba(0,200,255,',charged:0},
+    {x:260,y:260,angle:Math.PI,speed:0.012,radius:130,color:'rgba(0,255,157,',charged:0},
+    {x:260,y:260,angle:Math.PI/2,speed:0.006,radius:220,color:'rgba(255,107,53,',charged:0},
+  ];
+  // particle pool
+  const particles=[];
+  function spawnParticle(x,y,col){
+    particles.push({x,y,vx:(Math.random()-0.5)*2,vy:(Math.random()-0.5)*2,life:1,col});
+  }
+
+  function drawCar(ctx,x,y,angle,col,scale){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle+Math.PI/2);
+    ctx.scale(scale,scale);
+    // body
+    ctx.beginPath();
+    ctx.roundRect(-18,-10,36,20,5);
+    ctx.fillStyle=col+'0.7)';
+    ctx.fill();
+    ctx.strokeStyle=col+'0.9)';
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    // cabin
+    ctx.beginPath();
+    ctx.roundRect(-12,-18,24,12,4);
+    ctx.fillStyle=col+'0.4)';
+    ctx.fill();
+    ctx.strokeStyle=col+'0.6)';
+    ctx.lineWidth=0.8;
+    ctx.stroke();
+    // wheels
+    [[-16,6],[16,6],[-16,-6],[16,-6]].forEach(([wx,wy])=>{
+      ctx.beginPath();
+      ctx.arc(wx,wy,4.5,0,Math.PI*2);
+      ctx.fillStyle=col+'0.9)';
+      ctx.fill();
+    });
+    // headlights
+    ctx.beginPath();
+    ctx.arc(-14,10,3,0,Math.PI*2);
+    ctx.fillStyle=col+'1)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(14,10,3,0,Math.PI*2);
+    ctx.fillStyle=col+'1)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawOrbit(ctx,cx,cy,r,col){
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.strokeStyle=col+'0.12)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawChargingStation(ctx,cx,cy){
+    // Base
+    ctx.beginPath();
+    ctx.roundRect(cx-16,cy-32,32,58,6);
+    ctx.fillStyle='rgba(0,200,255,0.12)';
+    ctx.fill();
+    ctx.strokeStyle='rgba(0,200,255,0.4)';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+    // Bolt symbol
+    ctx.beginPath();
+    ctx.moveTo(cx+5,cy-20);
+    ctx.lineTo(cx-3,cy-6);
+    ctx.lineTo(cx+3,cy-6);
+    ctx.lineTo(cx-5,cy+8);
+    ctx.lineTo(cx+5,cy+8);
+    ctx.lineTo(cx-3,cy-6);
+    ctx.fillStyle=`rgba(0,255,157,${0.6+0.4*Math.sin(t*3)})`;
+    ctx.fill();
+    // Glow
+    const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,30);
+    grd.addColorStop(0,`rgba(0,200,255,${0.2*Math.abs(Math.sin(t*2))})`);
+    grd.addColorStop(1,'rgba(0,200,255,0)');
+    ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);
+    ctx.fillStyle=grd;ctx.fill();
+  }
+
+  function drawChargingLine(ctx,cx,cy,car,col){
+    const carX=cx+Math.cos(car.angle)*car.radius;
+    const carY=cy+Math.sin(car.angle)*car.radius;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    const mx=(cx+carX)/2+Math.cos(car.angle+Math.PI/2)*20;
+    const my=(cy+carY)/2+Math.sin(car.angle+Math.PI/2)*20;
+    ctx.quadraticCurveTo(mx,my,carX,carY);
+    ctx.strokeStyle=col+'0.3)';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([4,6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // flowing dash
+    const progress=(t*0.5)%1;
+    const bx=cx+(1-progress)*(1-progress)*carX+2*(1-progress)*progress*mx+progress*progress*carX;
+    const by=cy+(1-progress)*(1-progress)*carY+2*(1-progress)*progress*my+progress*progress*carY;
+    ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);
+    ctx.fillStyle=col+'0.9)';ctx.fill();
+    if(Math.random()<0.05) spawnParticle(bx,by,col);
+  }
+
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    t+=0.016;
+    const cx=W/2, cy=H/2;
+    // outer ring glow
+    const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,250);
+    grd.addColorStop(0,'rgba(0,200,255,0.03)');
+    grd.addColorStop(1,'rgba(0,200,255,0)');
+    ctx.beginPath();ctx.arc(cx,cy,250,0,Math.PI*2);
+    ctx.fillStyle=grd;ctx.fill();
+    // orbits
+    CARS.forEach(c=>{
+      drawOrbit(ctx,cx,cy,c.radius,c.color);
+      drawChargingLine(ctx,cx,cy,c,c.color);
+      c.angle+=c.speed;
+      const carX=cx+Math.cos(c.angle)*c.radius;
+      const carY=cy+Math.sin(c.angle)*c.radius;
+      drawCar(ctx,carX,carY,c.angle,c.color,0.8);
+    });
+    // charging station center
+    drawChargingStation(ctx,cx,cy-10);
+    // particles
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx; p.y+=p.vy; p.life-=0.04;
+      ctx.beginPath();ctx.arc(p.x,p.y,2*p.life,0,Math.PI*2);
+      ctx.fillStyle=p.col+(p.life*0.8)+')';
+      ctx.fill();
+      if(p.life<=0) particles.splice(i,1);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// =============================================
+// DEMAND TIMELINE ANIMATION
+// =============================================
+(function(){
+  const canvas=document.getElementById('timelineCanvas');
+  const ctx=canvas.getContext('2d');
+  let W,H;
+  function resize(){
+    W=canvas.width=canvas.parentElement.offsetWidth||600;
+    H=canvas.height=200;
+  }
+  resize();
+  window.addEventListener('resize',resize);
+  let t=0;
+  const hours=Array.from({length:24},(_,i)=>i);
+  // Base demand pattern
+  function demand(h){
+    const base=20;
+    const morning=h>=8&&h<=10?40*Math.exp(-0.5*Math.pow((h-9)/0.8,2)):0;
+    const lunch=h>=11&&h<=13?15*Math.exp(-0.5*Math.pow((h-12)/0.6,2)):0;
+    const afternoon=h>=14&&h<=16?30*Math.exp(-0.5*Math.pow((h-15)/0.7,2)):0;
+    const evening=h>=16&&h<=21?35*Math.exp(-0.5*Math.pow((h-18)/1.5,2)):0;
+    return base+morning+lunch+afternoon+evening;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    t+=0.03;
+    const pad={l:40,r:20,t:20,b:30};
+    const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+    const maxD=120;
+    // Grid
+    ctx.strokeStyle='rgba(0,200,255,0.06)';ctx.lineWidth=0.5;
+    for(let i=0;i<=4;i++){
+      const y=pad.t+cH-cH*(i/4);
+      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();
+    }
+    // Peak zone (4-9 PM shading)
+    const px1=pad.l+cW*(16/24);
+    const px2=pad.l+cW*(21/24);
+    ctx.fillStyle='rgba(255,107,53,0.07)';
+    ctx.fillRect(px1,pad.t,px2-px1,cH);
+    ctx.fillStyle='rgba(255,107,53,0.5)';
+    ctx.font='10px Syne,sans-serif';
+    ctx.fillText('PEAK ZONE',px1+4,pad.t+14);
+
+    // Build points with slight wave animation
+    const pts=hours.map(h=>{
+      const d=demand(h)+Math.sin(t+h*0.5)*3;
+      return{
+        x:pad.l+cW*(h/23),
+        y:pad.t+cH-cH*(Math.min(d,maxD)/maxD)
+      };
+    });
+    // Fill area
+    const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+    grad.addColorStop(0,'rgba(0,200,255,0.25)');
+    grad.addColorStop(1,'rgba(0,200,255,0)');
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pad.t+cH);
+    pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(pts[pts.length-1].x,pad.t+cH);
+    ctx.closePath();
+    ctx.fillStyle=grad;
+    ctx.fill();
+    // Line
+    ctx.beginPath();
+    pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+    ctx.strokeStyle='rgba(0,200,255,0.8)';
+    ctx.lineWidth=1.8;
+    ctx.stroke();
+    // Current time indicator
+    const now=((t*0.5)%24);
+    const nx=pad.l+cW*(now/23);
+    const nd=demand(now)+Math.sin(t+now*0.5)*3;
+    const ny=pad.t+cH-cH*(Math.min(nd,maxD)/maxD);
+    ctx.beginPath();ctx.arc(nx,ny,4,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,255,157,1)';ctx.fill();
+    ctx.beginPath();ctx.arc(nx,ny,8,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,255,157,0.2)';ctx.fill();
+    // Hour labels
+    ctx.fillStyle='rgba(107,144,176,0.7)';
+    ctx.font='10px Syne,sans-serif';
+    [0,4,8,12,16,20].forEach(h=>{
+      ctx.fillText(h+'h',pad.l+cW*(h/23)-8,H-6);
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// =============================================
+// CHART.JS CHARTS
+// =============================================
+// Color helper
+const C={
+  accent:'rgba(0,200,255,0.85)',
+  accent2:'rgba(0,255,157,0.85)',
+  accent3:'rgba(255,107,53,0.85)',
+  accentDim:'rgba(0,200,255,0.25)',
+  accent2Dim:'rgba(0,255,157,0.2)',
+  accent3Dim:'rgba(255,107,53,0.25)',
+  muted:'rgba(107,144,176,0.5)',
+};
+const GRID={color:'rgba(0,200,255,0.06)'};
+const TICK={color:'rgba(107,144,176,0.8)',font:{family:"'Syne',sans-serif",size:11}};
+
+// Savings chart
+new Chart(document.getElementById('savingsChart'),{
+  type:'bar',
+  data:{
+    labels:['Energy Rate Savings','Demand Charge Reduction','Total Combined'],
+    datasets:[{
+      label:'Savings ($)',
+      data:[50000,49500,99500],
+      backgroundColor:[C.accentDim,C.accent2Dim,'rgba(120,80,255,0.25)'],
+      borderColor:[C.accent,C.accent2,'rgba(160,120,255,0.9)'],
+      borderWidth:1.5,
+      borderRadius:8,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.raw.toLocaleString()}}},
+    scales:{
+      x:{grid:GRID,ticks:TICK},
+      y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+Math.round(v/1000)+'K'}}
+    }
+  }
+});
+
+// Class distribution donut
+new Chart(document.getElementById('classChart'),{
+  type:'doughnut',
+  data:{
+    labels:['Not High-Demand (75%)','High-Demand (25%)'],
+    datasets:[{
+      data:[75,25],
+      backgroundColor:['rgba(0,200,255,0.2)','rgba(255,107,53,0.7)'],
+      borderColor:['rgba(0,200,255,0.5)','rgba(255,107,53,0.9)'],
+      borderWidth:1.5,
+      hoverOffset:4,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    cutout:'65%',
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:v=>v.label}}
+    }
+  }
+});
+
+// AUC comparison horizontal bar
+new Chart(document.getElementById('aucChart'),{
+  type:'bar',
+  data:{
+    labels:['LightGBM\nElasticNet','XGBoost\nEarly Stop','LightGBM\nEarly Stop','GAM²','RuleFit'],
+    datasets:[
+      {label:'Val AUC',data:[0.7588,0.7603,0.7555,0.7506,0.7541],backgroundColor:[C.accent2Dim,C.accentDim,C.accentDim,C.accentDim,C.accentDim],borderColor:[C.accent2,C.accent,C.accent,C.accent,C.accent],borderWidth:1.5,borderRadius:5},
+      {label:'Holdout AUC',data:[0.7589,0.7547,0.7549,0.7517,0.7610],backgroundColor:['rgba(120,80,255,0.15)',C.muted,C.muted,C.muted,C.muted],borderColor:['rgba(160,120,255,0.7)',C.muted,C.muted,C.muted,C.muted],borderWidth:1,borderRadius:5},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:GRID,ticks:{...TICK,callback:v=>v.toFixed(2)},min:0.72,max:0.78},
+      y:{grid:GRID,ticks:TICK}
+    }
+  }
+});
+
+// Duration chart
+new Chart(document.getElementById('durChart'),{
+  type:'bar',
+  data:{
+    labels:['0–1 hr','1–2.5 hr','2.5–4 hr','4–6 hr','6+ hr'],
+    datasets:[{
+      label:'P(High Demand)',
+      data:[0.02,0.07,0.15,0.27,0.37],
+      backgroundColor:['rgba(0,200,255,0.2)','rgba(0,200,255,0.3)','rgba(0,200,255,0.5)','rgba(255,107,53,0.5)','rgba(255,107,53,0.8)'],
+      borderColor:['rgba(0,200,255,0.5)','rgba(0,200,255,0.7)','rgba(0,200,255,0.9)','rgba(255,107,53,0.7)','rgba(255,107,53,1)'],
+      borderWidth:1.5,borderRadius:6,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:GRID,ticks:TICK},
+      y:{grid:GRID,ticks:{...TICK,callback:v=>v.toFixed(2)},min:0,max:0.45}
+    }
+  }
+});
+
+// Time window chart
+new Chart(document.getElementById('timeChart'),{
+  type:'bar',
+  data:{
+    labels:['06–08','08–10','10–12','12–14','14–16 ⚠','16–18','18–20','20–24'],
+    datasets:[{
+      label:'P(High Demand)',
+      data:[0.22,0.27,0.24,0.24,0.29,0.18,0.08,0.02],
+      backgroundColor:['rgba(0,200,255,0.4)','rgba(0,200,255,0.45)','rgba(0,200,255,0.4)','rgba(0,200,255,0.4)','rgba(255,107,53,0.8)','rgba(0,200,255,0.3)','rgba(0,200,255,0.2)','rgba(0,200,255,0.1)'],
+      borderColor:['rgba(0,200,255,0.7)','rgba(0,200,255,0.8)','rgba(0,200,255,0.7)','rgba(0,200,255,0.7)','rgba(255,107,53,1)','rgba(0,200,255,0.6)','rgba(0,200,255,0.5)','rgba(0,200,255,0.3)'],
+      borderWidth:1.5,borderRadius:6,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:GRID,ticks:{...TICK,maxRotation:45}},
+      y:{grid:GRID,ticks:{...TICK,callback:v=>v.toFixed(2)},min:0,max:0.38}
+    }
+  }
+});
+
+// Vehicle make chart (horizontal)
+new Chart(document.getElementById('makeChart'),{
+  type:'bar',
+  data:{
+    labels:['Tesla','Nissan','Fiat','OTHER','BMW','Ford','Honda','Prius'],
+    datasets:[{
+      label:'P(High Demand)',
+      data:[0.64,0.39,0.33,0.29,0.25,0.05,0.04,0.03],
+      backgroundColor:['rgba(0,255,157,0.7)','rgba(0,200,255,0.5)','rgba(0,200,255,0.45)','rgba(0,200,255,0.4)','rgba(0,200,255,0.35)','rgba(107,144,176,0.3)','rgba(107,144,176,0.25)','rgba(107,144,176,0.2)'],
+      borderColor:['rgba(0,255,157,1)','rgba(0,200,255,0.8)','rgba(0,200,255,0.7)','rgba(0,200,255,0.65)','rgba(0,200,255,0.6)','rgba(107,144,176,0.5)','rgba(107,144,176,0.45)','rgba(107,144,176,0.4)'],
+      borderWidth:1.5,borderRadius:5,
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:GRID,ticks:{...TICK,callback:v=>v.toFixed(2)},min:0,max:0.75},
+      y:{grid:GRID,ticks:TICK}
+    }
+  }
+});
+
+// Paid vs Free chart
+new Chart(document.getElementById('paidChart'),{
+  type:'bar',
+  data:{
+    labels:['Free Sessions','Paid Sessions'],
+    datasets:[{
+      label:'P(High Demand)',
+      data:[0.50,0.245],
+      backgroundColor:['rgba(255,107,53,0.7)','rgba(0,200,255,0.4)'],
+      borderColor:['rgba(255,107,53,1)','rgba(0,200,255,0.8)'],
+      borderWidth:1.5,borderRadius:8,
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:GRID,ticks:TICK},
+      y:{grid:GRID,ticks:{...TICK,callback:v=>(v*100).toFixed(0)+'%'},min:0,max:0.65}
+    }
+  }
+});
+
+// =============================================
+// AUC TABLE ROWS
+// =============================================
+const aucData=[
+  {name:'Light GBM on ElasticNet (64%) — Selected',val:0.7588,cv:0.7461,hold:0.7589,best:true},
+  {name:'XGBoost w/ Early Stopping',val:0.7603,cv:0.7455,hold:0.7547,best:false},
+  {name:'LightGBM w/ Early Stopping',val:0.7555,cv:0.7451,hold:0.7549,best:false},
+  {name:'Generalized Additive² Model',val:0.7506,cv:0.7397,hold:0.7517,best:false},
+  {name:'RuleFit Classifier',val:0.7541,cv:null,hold:0.7610,best:false},
+];
+const aucCont=document.getElementById('aucRows');
+aucData.forEach(r=>{
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;padding:14px 22px;border-bottom:1px solid rgba(0,200,255,0.06);align-items:center;transition:background 0.2s;';
+  row.onmouseenter=()=>row.style.background='rgba(0,200,255,0.03)';
+  row.onmouseleave=()=>row.style.background='';
+  if(r.best) row.style.background='rgba(0,255,157,0.04)';
+  const nameDiv=document.createElement('div');
+  nameDiv.style.cssText='font-size:0.84rem;display:flex;align-items:center;gap:8px;';
+  if(r.best){
+    const badge=document.createElement('span');
+    badge.className='badge b-sel';
+    badge.textContent='★ SELECTED';
+    nameDiv.appendChild(badge);
+  }
+  nameDiv.appendChild(document.createTextNode(r.name));
+  row.appendChild(nameDiv);
+  [r.val,r.cv,r.hold].forEach(v=>{
+    const td=document.createElement('div');
+    td.style.cssText=`text-align:center;font-family:'Syne',sans-serif;font-weight:600;font-size:0.95rem;color:${r.best?'var(--accent2)':'var(--accent)'};`;
+    td.textContent=v!==null?v.toFixed(4):'—';
+    row.appendChild(td);
+  });
+  aucCont.appendChild(row);
+});
+
+// =============================================
+// FEATURE GRID
+// =============================================
+const features=['driverId','vehicle_model','energy_charged','vehicle_make','request_exit_time','cost_for_session','request_entry_time','expected_departure','afterPaid (free/paid)','start/end_datetime','station (charger ID)','miles_requested','kwh_requested','max_charge_power','controlled_duration','start/termin_charge'];
+const fg=document.getElementById('featureGrid');
+features.forEach(f=>{
+  const el=document.createElement('div');
+  el.style.cssText='font-size:0.76rem;padding:6px 10px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.07);border-radius:8px;color:rgba(107,144,176,0.9);';
+  el.textContent=f;
+  fg.appendChild(el);
+});
+
+// =============================================
+// FEATURE IMPORTANCE HORIZONTAL BARS
+// =============================================
+const featData=[
+  {name:'session_duration_hours',pct:92,col:'var(--accent3)'},
+  {name:'time_window_2hr',pct:73,col:'var(--accent)'},
+  {name:'make_clean',pct:68,col:'var(--accent2)'},
+  {name:'paid_session',pct:64,col:'var(--accent)'},
+  {name:'is_weekend',pct:38,col:'var(--muted)'},
+  {name:'month',pct:28,col:'var(--muted)'},
+  {name:'day_of_week',pct:22,col:'var(--muted)'},
+];
+const fc=document.getElementById('featImportanceBars');
+featData.forEach(f=>{
+  fc.innerHTML+=`<div class="hbar-row">
+    <div class="hbar-lbl" style="width:140px;text-align:left;font-size:0.76rem;">${f.name}</div>
+    <div class="hbar-track" style="flex:1;">
+      <div class="hbar-fill" data-w="${f.pct}%" style="background:${f.col};width:0;"></div>
+    </div>
+    <div class="hbar-val" style="color:${f.col};">${f.pct}%</div>
+  </div>`;
+});
+
+// =============================================
+// NAV & BREADCRUMB SETUP
+// =============================================
+const sections=document.querySelectorAll('section');
+const navLabels=['Hero','Problem','Savings','Data','Features','Model','Predictors','Next Steps'];
+const navL=document.getElementById('navLinks');
+const crumb=document.getElementById('crumb');
+const counter=document.getElementById('navCounter');
+sections.forEach((s,i)=>{
+  const btn=document.createElement('button');
+  btn.className='nav-link'+(i===0?' active':'');
+  btn.textContent=navLabels[i];
+  btn.onclick=()=>s.scrollIntoView({behavior:'smooth'});
+  navL.appendChild(btn);
+  const ci=document.createElement('div');
+  ci.className='crumb-item'+(i===0?' on':'');
+  ci.onclick=()=>s.scrollIntoView({behavior:'smooth'});
+  crumb.appendChild(ci);
+});
+
+// =============================================
+// SCROLL PROGRESS + INTERSECTION OBSERVERS
+// =============================================
+const prog=document.getElementById('prog');
+window.addEventListener('scroll',()=>{
+  const pct=window.scrollY/(document.documentElement.scrollHeight-window.innerHeight)*100;
+  prog.style.width=pct.toFixed(1)+'%';
+});
+
+// Reveal observer
+const ro=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+    }
+  });
+},{threshold:0.15});
+document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+
+// Section observer for nav
+const so=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const idx=Array.from(sections).indexOf(e.target);
+      document.querySelectorAll('.nav-link').forEach((b,i)=>b.classList.toggle('active',i===idx));
+      document.querySelectorAll('.crumb-item').forEach((c,i)=>c.classList.toggle('on',i===idx));
+      counter.textContent=String(idx+1).padStart(2,'0')+' / '+String(sections.length).padStart(2,'0');
+      // Trigger bar animations
+      e.target.querySelectorAll('.hbar-fill').forEach(b=>{
+        b.style.transition='width 1.4s cubic-bezier(0.34,1.56,0.64,1)';
+        b.style.width=b.dataset.w;
+      });
+    }
+  });
+},{threshold:0.3});
+sections.forEach(s=>so.observe(s));
+
+// =============================================
+// ANIMATED COUNTERS
+// =============================================
+function animCount(el,end,prefix,suffix,duration){
+  let start=0;
+  const step=end/60;
+  const timer=setInterval(()=>{
+    start+=step;
+    if(start>=end){start=end;clearInterval(timer);}
+    el.textContent=prefix+(Math.round(start)).toLocaleString()+suffix;
+  },duration/60);
+}
+const co1=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      animCount(document.getElementById('savCount1'),50000,'~$','',1200);
+      animCount(document.getElementById('savCount2'),49500,'~$','',1200);
+      co1.disconnect();
+    }
+  });
+},{threshold:0.4});
+const s3=document.getElementById('s3');
+if(s3) co1.observe(s3);
+
+// Free/Paid percentage counters
+const co2=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      animCount(document.getElementById('freeCount'),50,'','%',1000);
+      animCount(document.getElementById('paidCount'),24.5,'','%',1000);
+      co2.disconnect();
+    }
+  });
+},{threshold:0.4});
+const s7=document.getElementById('s7');
+if(s7) co2.observe(s7);
+</script>
+</body>
+</html>
